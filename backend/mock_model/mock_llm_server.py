@@ -1,7 +1,8 @@
 from collections.abc import AsyncIterable
 
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse, EventSourceResponse, ServerSentEvent
+from fastapi.responses import StreamingResponse, EventSourceResponse
+from fastapi.sse import ServerSentEvent
 from pydantic import BaseModel
 import time, json, uuid, asyncio
 

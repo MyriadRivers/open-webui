@@ -1,7 +1,6 @@
 import { dispatchWidgetEvent } from '$lib/stores/liveSessionWidget';
 
 type StepStatus = "running" | "complete" | "error";
-export type SessionStatus = "streaming" | "complete" | "error";
 
 export interface StepDelta {
   messageId: string;
@@ -28,24 +27,11 @@ interface WidgetErrorEvent {
   error: string;
 }
 
-interface SessionPresenceEvent {
-    chatId: string;
-    type: "presence";
-    activeViewers: number;
-}
-
-interface SessionStatusEvent {
-    chatId: string;
-    type: "session_status";
-    status:SessionStatus;
-}
-
 type WidgetDeltaEvent = StepDelta | MetricDelta;
-export type ParsedWidgetEvent = WidgetDeltaEvent | WidgetDoneEvent | WidgetErrorEvent;
-export type SessionEvent = SessionPresenceEvent | SessionStatusEvent;
+export type WidgetEvent = WidgetDeltaEvent | WidgetDoneEvent | WidgetErrorEvent;
 
 // Parser type validates widget events
-const parseWidgetEvent = (event: any): ParsedWidgetEvent | null => {
+const parseWidgetEvent = (event: any): WidgetEvent | null => {
     if (event.event !== "widget_delta" && event.event !== "widget_done") return null;
     
     let json: any;
@@ -70,7 +56,9 @@ const parseWidgetEvent = (event: any): ParsedWidgetEvent | null => {
                 type: "step",
                 id: json.id,
                 ...(typeof json.label === 'string' && { label: json.label }),
-                ...(typeof json.status === 'string' && { status: json.status })
+                ...(typeof json.status === 'string' 
+                    && (json.status === 'running' || json.status === 'complete' || json.status === 'error') 
+                    && { status: json.status })
             };
             return stepDeltaEvent;
         }
@@ -97,7 +85,7 @@ export const generateWidgetStream = async (
     const key = `${chatId}:${messageId}`;
     
     evtSource.addEventListener('widget_delta', (e) => {
-        const parsed: ParsedWidgetEvent | null = parseWidgetEvent({ event: e });
+        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e });
         if (parsed) {
             const deltaEvent = parsed as WidgetDeltaEvent;
             dispatchWidgetEvent(key, deltaEvent.type, deltaEvent);
@@ -105,7 +93,7 @@ export const generateWidgetStream = async (
     });
 
     evtSource.addEventListener('widget_done', (e) => {
-        const parsed: ParsedWidgetEvent | null = parseWidgetEvent({ event: e });
+        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e });
         if (parsed) {
             dispatchWidgetEvent(key, 'done', parsed);
         }
@@ -120,3 +108,4 @@ export const generateWidgetStream = async (
 
     return () => evtSource.close();
 };
+

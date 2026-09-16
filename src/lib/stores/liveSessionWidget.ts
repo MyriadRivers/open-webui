@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
-import { type MetricDelta, type ParsedWidgetEvent, type SessionStatus, type StepDelta } from "$lib/apis/live_session_widget";
+import { type MetricDelta, type WidgetEvent, type StepDelta } from "$lib/apis/live_session_widget/sse";
+import { type SessionPresenceEvent, type SessionStatusEvent, type SessionStatus } from "$lib/apis/live_session_widget/socket";
 
 type WidgetStatus = 'starting' | 'streaming' | 'complete' | 'error';
 
@@ -10,11 +11,6 @@ interface WidgetState {
     metrics: Record<string, MetricDelta>;
 };
 
-interface SessionState {
-    sessionStatus: SessionStatus;
-    activeViewers: number;
-}
-
 const createInitialWidgetState = (): WidgetState => ({
     status: 'starting',
     stepOrder: [],
@@ -22,7 +18,7 @@ const createInitialWidgetState = (): WidgetState => ({
     metrics: {}
 });
 
-const reduceWidgetEvent = (state: WidgetState, event: "step" | "metric" | "done" | "error", parsed: ParsedWidgetEvent): WidgetState => {
+const reduceWidgetEvent = (state: WidgetState, event: "step" | "metric" | "done" | "error", parsed: WidgetEvent): WidgetState => {
     // Ignore further events if the session is already complete or errored
     if (state.status === 'complete' || state.status === 'error') return state;
     if (event === "done") {
@@ -62,7 +58,7 @@ const reduceWidgetEvent = (state: WidgetState, event: "step" | "metric" | "done"
     };
 }
 
-export const dispatchWidgetEvent = (key: string, event: "step" | "metric" | "done" | "error", parsed: ParsedWidgetEvent) => {
+export const dispatchWidgetEvent = (key: string, event: "step" | "metric" | "done" | "error", parsed: WidgetEvent) => {
     if (!parsed) return;
     widgetStore.update((store) => ({
         ...store,
@@ -70,4 +66,46 @@ export const dispatchWidgetEvent = (key: string, event: "step" | "metric" | "don
     }));
 }
 
+// Keyed by chatId and messageId, stores widget state for every active widget
 export const widgetStore = writable<Record<string, WidgetState>>({});
+
+interface SessionState {
+    sessionStatus: SessionStatus;
+    activeViewers: number;
+}
+
+const reduceSessionPresenceEvent = (state: SessionState, parsed: any): SessionState => {
+    return {
+        ...state,
+        activeViewers: parsed.activeViewers
+    };
+}
+
+const reduceSessionStatusEvent = (state: SessionState, parsed: any): SessionState => {
+    return {
+        ...state,
+        sessionStatus: parsed.status
+    };
+}
+
+export const dispatchPresence = (parsed: SessionPresenceEvent) => {
+    const key = parsed.chatId;
+    if (!parsed) return;
+    sessionStore.update((store) => ({
+        ...store,
+        [key]: reduceSessionPresenceEvent(store[key] ?? { sessionStatus: 'complete', activeViewers: 1 }, parsed)
+    }));
+}
+
+export const dispatchSessionStatus = (parsed: SessionStatusEvent) => {
+    const key = parsed.chatId;
+    if (!parsed) return;
+    sessionStore.update((store) => ({
+        ...store,
+        [key]: reduceSessionStatusEvent(store[key] ?? { sessionStatus: 'complete', activeViewers: 1 }, parsed)
+    }));
+}
+
+// Keyed only by chatId, stores session state for every active chat session.
+// Our widget will only display the session state for the currently viewed chat though
+export const sessionStore = writable<Record<string, SessionState>>({});
