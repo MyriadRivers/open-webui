@@ -2,6 +2,7 @@ from collections.abc import AsyncIterable
 
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, EventSourceResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.sse import ServerSentEvent
 from pydantic import BaseModel
 import time, json, uuid, asyncio
@@ -9,6 +10,12 @@ import time, json, uuid, asyncio
 from typing import Optional, Literal
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET"]
+)
 
 # Mock chat completion model
 
@@ -100,5 +107,6 @@ async def widget_event_stream(message_id: str):
 
 @app.get("/widget/sse_events/{message_id}", response_class=EventSourceResponse)
 async def sse_items(message_id: str) -> AsyncIterable[ServerSentEvent]:
-    return StreamingResponse(widget_event_stream(message_id), media_type="text/event-stream")
+    async for item in widget_event_stream(message_id):
+        yield item
 

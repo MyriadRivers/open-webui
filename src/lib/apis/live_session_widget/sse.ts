@@ -85,7 +85,7 @@ export const generateWidgetStream = async (
     const key = `${chatId}:${messageId}`;
     
     evtSource.addEventListener('widget_delta', (e) => {
-        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e });
+        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e.type, data: e.data });
         if (parsed) {
             const deltaEvent = parsed as WidgetDeltaEvent;
             dispatchWidgetEvent(key, deltaEvent.type, deltaEvent);
@@ -93,7 +93,7 @@ export const generateWidgetStream = async (
     });
 
     evtSource.addEventListener('widget_done', (e) => {
-        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e });
+        const parsed: WidgetEvent | null = parseWidgetEvent({ event: e.type, data: e.data });
         if (parsed) {
             dispatchWidgetEvent(key, 'done', parsed);
         }

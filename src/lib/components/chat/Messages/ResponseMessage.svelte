@@ -64,6 +64,8 @@
 	import OutputEditView from './OutputEditView.svelte';
 	import { getOutputText, replaceOutputMessageText, type OutputItem } from './structuredOutput';
 
+	import LiveSessionWidget from './LiveSessionWidget.svelte';
+
 	interface MessageType {
 		id: string;
 		model: string;
@@ -820,6 +822,8 @@
 							class="w-full flex flex-col relative {edit ? 'hidden' : ''}"
 							id="response-content-container"
 						>
+							<LiveSessionWidget chatId={chatId} messageId={message.id} />
+
 							{#if hasResponseContent && message.error !== true}
 								<!-- always show message contents even if there's an error -->
 								<!-- unless message.error === true which is legacy error handling, where the error message is stored in message.content -->
