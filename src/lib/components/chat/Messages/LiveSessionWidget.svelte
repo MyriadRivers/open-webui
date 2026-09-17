@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { widgetStore, sessionStore } from '$lib/stores/liveSessionWidget';
+  import { widgetStore, sessionStore, dispatchWidgetEvent, startNewWidgetForChat, abortedMessageIds, registerConnection } from '$lib/stores/liveSessionWidget';
   import { generateWidgetStream } from '$lib/apis/live_session_widget/sse';
   import { reportSessionStatus } from '$lib/apis/live_session_widget/socket';
-  import { connectionState, socketConnected } from '$lib/stores';
+  import { connectionState } from '$lib/stores';
 
   export let chatId: string;
   export let messageId: string;
+  export let done: boolean = false;
 
   const key = `${chatId}:${messageId}`;
 
@@ -26,13 +27,29 @@
 
   let stopStream: () => void;
 
+  // Stopping generation will be treated as the steps erroring. 
+  $: if ($abortedMessageIds.has(key)) {
+	stopStream?.();
+	widgetStore.update((states) => ({
+		...states,
+		[key]: { ...states[key], status: 'error'}
+	}));
+	reportSessionStatus(chatId, 'error');
+  }
+
   onMount(async () => {
-	stopStream = await generateWidgetStream(chatId, messageId, 'http://localhost:4000')
+	const key = `${chatId}:${messageId}`;
+	const existing = widgetState;
+	if (!existing && !done) {
+		startNewWidgetForChat(chatId, messageId);
+		stopStream = await generateWidgetStream(messageId, 'http://localhost:4000', (parsed) => {
+			dispatchWidgetEvent(key, parsed.type, parsed)
+		})
+		registerConnection(key, stopStream);
+	}
   });
 
   onDestroy(() => {
-	stopStream?.();
-	widgetStore.update(({ [key]: _removed, ...rest }) => rest)
   })
 
 </script>

@@ -1,5 +1,3 @@
-import { dispatchWidgetEvent } from '$lib/stores/liveSessionWidget';
-
 type StepStatus = "running" | "complete" | "error";
 
 export interface StepDelta {
@@ -18,12 +16,14 @@ export interface MetricDelta {
   value: number;
 }
 
-interface WidgetDoneEvent {
+export interface WidgetDoneEvent {
   messageId: string;
+  type: "done";
 }
 
-interface WidgetErrorEvent {
+export interface WidgetErrorEvent {
   messageId: string;
+  type: "error",
   error: string;
 }
 
@@ -31,7 +31,7 @@ type WidgetDeltaEvent = StepDelta | MetricDelta;
 export type WidgetEvent = WidgetDeltaEvent | WidgetDoneEvent | WidgetErrorEvent;
 
 // Parser type validates widget events
-const parseWidgetEvent = (event: any): WidgetEvent | null => {
+export const parseWidgetEvent = (event: any): WidgetEvent | null => {
     if (event.event !== "widget_delta" && event.event !== "widget_done") return null;
     
     let json: any;
@@ -44,7 +44,8 @@ const parseWidgetEvent = (event: any): WidgetEvent | null => {
 
     if (event.event === "widget_done") {
         const widgetDoneEvent: WidgetDoneEvent = {
-            messageId: json.messageId
+            messageId: json.messageId,
+            type: "done"
         }
         return widgetDoneEvent;
     }
@@ -77,32 +78,37 @@ const parseWidgetEvent = (event: any): WidgetEvent | null => {
 }
 
 export const generateWidgetStream = async (
-    chatId: string = '',
     messageId: string = '',
-    url: string = ''
+    url: string = '',
+    onEvent: (event: WidgetEvent) => void
 ) => {
     const evtSource = new EventSource(`${url}/widget/sse_events/${messageId}`);
-    const key = `${chatId}:${messageId}`;
     
     evtSource.addEventListener('widget_delta', (e) => {
         const parsed: WidgetEvent | null = parseWidgetEvent({ event: e.type, data: e.data });
         if (parsed) {
             const deltaEvent = parsed as WidgetDeltaEvent;
-            dispatchWidgetEvent(key, deltaEvent.type, deltaEvent);
+            onEvent(deltaEvent)
         }
     });
 
     evtSource.addEventListener('widget_done', (e) => {
         const parsed: WidgetEvent | null = parseWidgetEvent({ event: e.type, data: e.data });
         if (parsed) {
-            dispatchWidgetEvent(key, 'done', parsed);
+            onEvent(parsed)
         }
         evtSource.close();
     });
 
     evtSource.onerror = () => {
         if (evtSource.readyState === EventSource.CLOSED) {
-            dispatchWidgetEvent(key, 'error', { messageId: messageId, error: 'An error occurred while attempting to connect.' });
+            const errorEvent: WidgetErrorEvent = {
+                messageId: messageId, 
+                type: "error", 
+                error: 'An error occurred while attempting to connect.' 
+            };
+            onEvent(errorEvent);
+            evtSource.close();
         }
     }
 

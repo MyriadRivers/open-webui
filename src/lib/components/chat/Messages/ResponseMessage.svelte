@@ -64,6 +64,7 @@
 	import OutputEditView from './OutputEditView.svelte';
 	import { getOutputText, replaceOutputMessageText, type OutputItem } from './structuredOutput';
 
+	import { widgetStore } from '$lib/stores/liveSessionWidget'
 	import LiveSessionWidget from './LiveSessionWidget.svelte';
 
 	interface MessageType {
@@ -145,6 +146,8 @@
 			}
 		}
 	}
+
+	$: widgetState = $widgetStore[`${chatId}:${message.id}`];
 
 	export let siblings;
 
@@ -822,8 +825,8 @@
 							class="w-full flex flex-col relative {edit ? 'hidden' : ''}"
 							id="response-content-container"
 						>
-							{#if !message.done}
-								<LiveSessionWidget chatId={chatId} messageId={message.id} />
+							{#if !message.done || $widgetStore[`${chatId}:${message.id}`]}
+								<LiveSessionWidget chatId={chatId} messageId={message.id} done={message.done}/>
 							{/if}
 
 							{#if hasResponseContent && message.error !== true}

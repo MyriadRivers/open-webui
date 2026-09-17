@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
-	import { get, type Unsubscriber, type Writable } from 'svelte/store';
+	import { get, writable, type Unsubscriber, type Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import equal from 'fast-deep-equal';
@@ -126,6 +126,7 @@
 	import EmbeddedChatHistoryDropdown from './EmbeddedChatHistoryDropdown.svelte';
 	import InputVariablesModal from './MessageInput/InputVariablesModal.svelte';
 	import { joinChatRoom, leaveChatRoom, subscribeToChatEvents } from '$lib/apis/live_session_widget/socket';
+	import { abortedMessageIds } from '$lib/stores/liveSessionWidget';
 
 	export let chatIdProp = '';
 	export let embedded = false;
@@ -3754,6 +3755,7 @@
 
 	const stopResponse = async (processQueue = true) => {
 		const responseMessage = history.currentId ? history.messages[history.currentId] : null;
+		
 		const hasTaskIds = (taskIds?.length ?? 0) > 0;
 		const hasPendingAssistantResponse =
 			!!$chatId &&
@@ -3780,6 +3782,8 @@
 			if (responseMessage?.parentId && history.messages[responseMessage.parentId]) {
 				for (const messageId of history.messages[responseMessage.parentId].childrenIds) {
 					history.messages[messageId].done = true;
+					const key = `${$chatId}:${messageId}`;
+					abortedMessageIds.update((set) => new Set(set).add(key))
 				}
 			}
 
