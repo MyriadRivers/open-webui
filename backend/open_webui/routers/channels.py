@@ -865,6 +865,11 @@ async def get_channel_messages(
 # GetPinnedChannelMessages
 ############################
 
+# temporary dev-only route
+@router.post("/api/dev/kill-my-socket")
+async def kill_socket(sid: str):
+    await sio.disconnect(sid)
+
 PAGE_ITEM_COUNT_PINNED = 20
 
 

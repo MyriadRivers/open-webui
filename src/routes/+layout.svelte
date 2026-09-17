@@ -174,6 +174,7 @@
 			auth: { token: localStorage.token }
 		});
 		await socket.set(_socket);
+		window.__socket = _socket;
 
 		_socket.on('connect_error', (err) => {
 			console.log('connect_error', err);
