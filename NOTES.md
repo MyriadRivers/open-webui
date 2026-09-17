@@ -88,7 +88,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 - Install dependencies and run server.
 ```
 pip install -r requirements.txt -U
-sh ./dev.sh
+sh ./start.sh
 ```
 - Access the front end at `http://localhost:5173`. Refresh if the back end is still loading.
 - After creating an account, go to settings on the bottom left and click "connections" under AI. 
