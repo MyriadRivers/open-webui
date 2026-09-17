@@ -125,6 +125,7 @@
 	import XMark from '../icons/XMark.svelte';
 	import EmbeddedChatHistoryDropdown from './EmbeddedChatHistoryDropdown.svelte';
 	import InputVariablesModal from './MessageInput/InputVariablesModal.svelte';
+	import { joinChatRoom, leaveChatRoom, subscribeToChatEvents } from '$lib/apis/live_session_widget/socket';
 
 	export let chatIdProp = '';
 	export let embedded = false;
@@ -1510,7 +1511,22 @@
 				message?.role === 'assistant' && !message.done && (message.childrenIds?.length ?? 0) === 0
 		);
 
+	// LIVE SESSION WIDGET FUNCTIONS
+	let unsubscribe: () => void;
+	let joinedChatId: string | null = null;
+
+	const switchRoom = (newChatId: string) => {
+		if (joinedChatId) leaveChatRoom(joinedChatId);
+		joinChatRoom(newChatId);
+		joinedChatId = newChatId;
+	};
+
 	const handleSocketConnect = async () => {
+		// LIVE SESSION WIDGET CHAT PRESENCE
+		if (joinedChatId) {
+			joinChatRoom(joinedChatId)
+		}
+		
 		// Gate on $chatId, not chatIdProp: chats started from the home page keep an empty chatIdProp
 		if (!$chatId || $temporaryChatEnabled) {
 			return;
@@ -1530,6 +1546,9 @@
 	};
 
 	onMount(() => {
+		switchRoom($chatId);
+		unsubscribe = subscribeToChatEvents();
+
 		loading = true;
 		console.log('mounted');
 		window.addEventListener('message', onMessageHandler);
@@ -1609,6 +1628,9 @@
 
 		return () => {
 			try {
+				if (joinedChatId) leaveChatRoom(joinedChatId);
+    			unsubscribe?.();
+
 				clearTimeout(saveControlsTimer);
 				saveControls();
 				if (chatIdProp && !$temporaryChatEnabled) {
@@ -1635,6 +1657,10 @@
 			}
 		};
 	});
+
+	$: if ($chatId && $chatId !== joinedChatId) {
+		switchRoom($chatId);
+	}
 
 	// File upload functions
 

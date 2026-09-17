@@ -100,10 +100,58 @@ async def widget_event_stream(message_id: str):
         SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="retrieval", status="complete")),
         SseEvent(event="widget_done", data=DoneEvent(messageId=message_id)),
     ]
+    delays = [0.4, 0.4, 0.4, 0.4]
 
-    for e in mock_events:
+    mock_events_2 = [
+        # Planning phase
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="planning", label="Planning approach", status="running")),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="planning", status="complete")),
+
+        # Retrieval phase — sources climb incrementally as it "finds" more
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="retrieval", label="Searching docs", status="running")),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="sources", label="Sources", value=1)),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="sources", value=2)),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="sources", value=4)),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="retrieval", status="complete")),
+
+        # Tool call phase
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="tool_call", label="Querying calculator tool", status="running")),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="tokens", label="Tokens", value=48)),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="tool_call", status="complete")),
+
+        # Reranking phase — includes a deliberate duplicate event to exercise idempotency
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="reranking", label="Reranking results", status="running")),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="sources", value=4)),  # duplicate value, same key
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="reranking", status="complete")),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="reranking", status="complete")),  # exact duplicate event
+
+        # Drafting phase — tokens climb steadily, plus a confidence metric
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="drafting_response", label="Drafting response", status="running")),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="tokens", value=112)),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="confidence", label="Confidence", value=0.81)),
+        SseEvent(event="widget_delta", data=MetricEvent(messageId=message_id, key="tokens", value=246)),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="drafting_response", status="complete")),
+
+        # Safety check phase
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="safety_check", label="Running safety check", status="running")),
+        SseEvent(event="widget_delta", data=StepEvent(messageId=message_id, id="safety_check", status="complete")),
+
+        SseEvent(event="widget_done", data=DoneEvent(messageId=message_id)),
+    ]
+
+    delays_2 = [
+        0.3, 0.5,                          # planning
+        0.4, 0.3, 0.3, 0.4, 0.6,           # retrieval
+        0.4, 0.3, 0.5,                      # tool_call
+        0.4, 0.3, 0.4, 0.2,                 # reranking (incl. duplicate)
+        0.4, 0.5, 0.3, 0.5, 0.6,            # drafting
+        0.4, 0.5,                            # safety_check
+        0.0
+    ]   
+
+    for e, delay in zip(mock_events_2, delays_2):
         yield ServerSentEvent(event=e.event, data=e.data)
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(delay)
 
 @app.get("/widget/sse_events/{message_id}", response_class=EventSourceResponse)
 async def sse_items(message_id: str) -> AsyncIterable[ServerSentEvent]:

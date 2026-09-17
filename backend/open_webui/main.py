@@ -271,6 +271,8 @@ from open_webui.utils.tool_approval import (
 )
 from open_webui.utils.tools import set_terminal_servers, set_tool_servers
 
+import open_webui.socket.live_session_widget
+
 if SAFE_MODE:
     print('SAFE MODE ENABLED')
     # Functions.deactivate_all_functions() is awaited in lifespan below

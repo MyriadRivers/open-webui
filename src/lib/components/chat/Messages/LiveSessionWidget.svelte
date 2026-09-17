@@ -2,8 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { widgetStore, sessionStore } from '$lib/stores/liveSessionWidget';
   import { generateWidgetStream } from '$lib/apis/live_session_widget/sse';
-  import { socketConnected } from '$lib/stores';
-  import { WEBUI_BASE_URL } from '$lib/constants';
+  import { reportSessionStatus } from '$lib/apis/live_session_widget/socket';
+  import { connectionState, socketConnected } from '$lib/stores';
 
   export let chatId: string;
   export let messageId: string;
@@ -12,6 +12,18 @@
 
   $: widgetState = $widgetStore[key];
   $: sessionState = $sessionStore[chatId];
+ 
+  let lastReportedStatus: string | undefined;
+ 
+  $: if (widgetState && widgetState.status !== lastReportedStatus) {
+    lastReportedStatus = widgetState.status;
+    if (widgetState.status === 'streaming' || widgetState.status === 'complete' || widgetState.status === 'error') {
+      reportSessionStatus(chatId, widgetState.status);
+    }
+  }
+
+  $: displayStatus = widgetState?.status ?? sessionState.sessionStatus ?? 'starting';
+
   let stopStream: () => void;
 
   onMount(async () => {
@@ -29,14 +41,17 @@
 	<div class="rounded-lg border border-gray-200 dark:border-gray-800 p-3 text-sm">
 		<div class="flex items-center justify-between mb-2">
 			<span class="font-medium">
-				{#if widgetState.status === 'starting'}Starting…
-				{:else if widgetState.status === 'streaming'}Generating…
-				{:else if widgetState.status === 'complete'}Done
+				{#if displayStatus === 'starting'}Starting…
+				{:else if displayStatus === 'streaming'}Generating…
+				{:else if displayStatus === 'complete'}Done
 				{:else}Error{/if}
 			</span>
 			{#if sessionState}
-				<span class="text-xs text-gray-500" aria-label={$socketConnected ? 'Connected' : 'Offline'}>
-					{$socketConnected ? '🟢' : '🔴'} · {sessionState.activeViewers} viewing
+				<span class="text-xs text-gray-500" aria-label={sessionState.sessionStatus ? 'Connected' : 'Offline'}>
+					{#if $connectionState === 'connected'}🟢
+  						{:else if $connectionState === 'reconnecting'}🟡
+  						{:else}🔴
+					{/if} · {sessionState.activeViewers} viewing
 				</span>
 			{/if}
 		</div>
@@ -55,6 +70,11 @@
 					<span>{m.label ?? k}: {m.value}</span>
 				{/each}
 			</div>
+		{/if}
+		{#if sessionState?.activeViewers !== undefined}
+			<span class="text-xs text-gray-500">
+				{sessionState.activeViewers} {sessionState.activeViewers === 1 ? 'viewer' : 'viewers'}
+			</span>
 		{/if}
 	</div>
 {/if}

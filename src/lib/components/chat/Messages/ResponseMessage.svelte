@@ -822,7 +822,9 @@
 							class="w-full flex flex-col relative {edit ? 'hidden' : ''}"
 							id="response-content-container"
 						>
-							<LiveSessionWidget chatId={chatId} messageId={message.id} />
+							{#if !message.done}
+								<LiveSessionWidget chatId={chatId} messageId={message.id} />
+							{/if}
 
 							{#if hasResponseContent && message.error !== true}
 								<!-- always show message contents even if there's an error -->

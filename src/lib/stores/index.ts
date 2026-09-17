@@ -30,6 +30,7 @@ export const mobile = writable(false);
 
 export const socket: Writable<null | Socket> = writable(null);
 export const socketConnected: Writable<boolean> = writable(true);
+export const connectionState = writable<'connected' | 'reconnecting' | 'offline'>('offline');
 export const activeUserIds: Writable<null | string[]> = writable(null);
 export const USAGE_POOL: Writable<null | string[]> = writable(null);
 

@@ -50,13 +50,21 @@ export const leaveChatRoom = (chatId: string) => {
 
 export const subscribeToChatEvents = () => {
   const s = get(socket);
+
+  s?.onAnyOutgoing((eventName, ...args) => {
+    console.log('Outgoing event:', eventName, args);
+  });
+
+  console.log("subscribed to chat events!")
   const onPresence = (data: any) => {
+    console.log("presence detected")
     const parsed: SessionPresenceEvent | null = parsePresence(data);
     if (parsed) {
       dispatchPresence(parsed);
     }
   };
   const onSessionStatus = (data: any) => {
+    console.log("session status event detected")
     const parsed: SessionStatusEvent | null = parseSessionStatus(data);
     if (parsed) {
       dispatchSessionStatus(parsed);
@@ -73,5 +81,6 @@ export const subscribeToChatEvents = () => {
 }
 
 export const reportSessionStatus = async (chatId: string, status: SessionStatus) => {
+    console.log("reporting session status")
     get(socket)?.emit('session_status', { chatId, status });
 }

@@ -20,6 +20,7 @@
 		mobile,
 		socket,
 		socketConnected,
+		connectionState,
 		chatId,
 		tags,
 		temporaryChatEnabled,
@@ -182,6 +183,7 @@
 
 		_socket.on('connect', async () => {
 			console.log('connected', _socket.id);
+			connectionState.set('connected');
 
 			// Cancel any pending disconnect toast if we reconnected quickly
 			clearDisconnectToastTimer();
@@ -244,15 +246,18 @@
 
 		_socket.on('reconnect_attempt', (attempt) => {
 			console.log('reconnect_attempt', attempt);
+			connectionState.set('reconnecting');
 		});
 
 		_socket.on('reconnect_failed', () => {
 			console.log('reconnect_failed');
+			connectionState.set('offline');
 		});
 
 		_socket.on('disconnect', (reason, details) => {
 			console.log(`Socket ${_socket.id} disconnected due to ${reason}`);
 			socketConnected.set(false);
+			connectionState.set('offline');
 			disconnectReason = reason;
 			disconnectWarningShown = false;
 
@@ -269,6 +274,7 @@
 			}
 
 			if (reason === 'io server disconnect') {
+				connectionState.set('reconnecting');
 				_socket.connect();
 			}
 
