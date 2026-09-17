@@ -68,7 +68,7 @@ git checkout live-session-widget
 ```
 - Run the mock LLM backend on port 4000.
     - `uvicorn mock_llm_server:app --port 4000 --reload` from `backend/mock_model` file path
-- Setup the front end. Make sure you have the right node version installed.
+- CD back to the main top level repo. Setup the front end. Make sure you have the right node version installed.
 ```cp -RPp .env.example .env
 npm install
 npm run build
